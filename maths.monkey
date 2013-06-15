@@ -16,3 +16,16 @@ Function Bezier:Void(out:Float[], startX:Float, startY:Float, endX:Float, endY:F
 	out[0] = startX * time2 * time2 * time2 + 3 * startHandleX * time2 * time2 * time + 3 * endHandleX * time2 * time * time + endX * time * time * time
 	out[1] = startY * time2 * time2 * time2 + 3 * startHandleY * time2 * time2 * time + 3 * endHandleY * time2 * time * time + endY * time * time * time
 End
+
+Function WrapAngle:Float(angle:Float)
+	' --- wrap an angle round ---
+	angle = angle / 360.0
+	Return (angle - Floor(angle)) * 360.0	
+End
+
+Function ATan2ToDegrees:Float(x:Float, y:float)
+	' --- convert atan into sensible angle --
+	Local angle:Float = ATan2(x, y)
+	If angle < 0 Return 180.0 + (180.0 + angle)
+	Return angle
+End

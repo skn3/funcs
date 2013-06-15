@@ -157,6 +157,80 @@ Function PointInRect:Bool(pointX:Float, pointY:Float, rectX:Float, rectY:Float, 
 End Function
 
 'line api
+Function LineOverlapsRect:Bool(lineX1:Float, lineY1:Float, lineX2:Float, lineY2:Float, rectX1:Float, rectY1:Float, rectWidth1:Float, rectHeight1:Float)
+	' --- quickest test for line overlapping a rect ---
+	'useful for testing if a moving point collided with a rect (without having to return the intersection point)	
+	'pre calc rect bottom corner (surely will save a few calculations?)
+	Local rectX2:= rectX1 + rectWidth1
+	Local rectY2:= rectY1 + rectHeight1
+	
+	'lets do a rect test first speed things up
+	Local lineRectX:= 0.0
+	Local lineRectY:= 0.0
+	Local lineRectWidth:= 0.0
+	Local lineRectHeight:= 0.0
+	
+	If lineX1 < lineX2
+		lineRectX = lineX1
+		lineRectWidth = lineX2 - lineX1
+	Else
+		lineRectX = lineX2
+		lineRectWidth = lineX1 - lineX2
+	EndIf
+	
+	If lineY1 < lineY2
+		lineRectY = lineY1
+		lineRectHeight = lineY2 - lineY1
+	Else
+		lineRectY = lineY2
+		lineRectHeight = lineY1 - lineY2
+	EndIf
+	
+	If lineRectX > rectX2 Or (lineRectX + lineRectWidth) < rectX1 or lineRectY > rectY2 Or (lineRectY + lineRectHeight) < rectY1 Return False
+	
+	'Find min and max X For the segment
+	Local minX:= lineX1
+	Local maxX:= lineX2
+	
+	If lineX1 > lineX2
+		minX = lineX2
+		maxX = lineX1
+	EndIf
+	
+	'Find the intersection of the segment's and rectangle's x-projections
+	If maxX > rectX2 maxX = rectX2
+	If minX < rectX1 minX = rectX1
+	
+	If minX > maxX Return False 'If their projections do not intersect return false
+	
+	'Find corresponding min and max Y for min and max X we found before
+	Local minY:= lineY1
+	Local maxY:= lineY2
+	
+	Local temp:= lineX2 - lineX1
+	
+	If Abs(temp) > 0.0000001
+		Local a:= (lineY2 - lineY1) / temp
+		Local b:= lineY1 - a * lineX1
+		minY = a * minX + b
+		maxY = a * maxX + b
+	EndIf
+	
+	If minY > maxY
+		temp = maxY
+		maxY = minY
+		minY = temp
+	EndIf
+	
+	'Find the intersection of the segment's and rectangle's y-projections
+	If maxY > rectY2 maxY = rectY2
+	If minY < rectY1 minY = rectY1
+	
+	If minY > maxY Return False' // If Y-projections do not intersect return false
+	
+	Return True
+End
+
 Function LineToTransformPoly:Bool(lineX1:Float, lineY1:Float, lineX2:Float, lineY2:Float, xy:Float[], polyX:Float = 0, polyY:Float = 0, rot:Float = 0, scaleX:Float = 1, scaleY:Float = 1, handleX:Float = 0, handleY:Float = 0, originX:Float = 0, originY:Float = 0)
 	
 	If xy.Length<6 Or (xy.Length&1) Return False
@@ -271,6 +345,8 @@ Function GetLineIntersectLine:Void(line1x1:Float, line1y1:Float, line1x2:Float, 
 	result[1] = m1 * result[0] + b1
 End Function
 
+
+
 Function GetLineIntersectRect:Void(linex1:Float, liney1:Float, linex2:Float, liney2:Float, rectX1:Float, rectY1:Float, rectWidth:Float, rectHeight:Float, result:Float[])
 	Local rectX2:Float = rectX1 + rectWidth
 	Local rectY2:Float = rectY1 + rectHeight
@@ -305,9 +381,9 @@ Function GetLineIntersectRect:Void(linex1:Float, liney1:Float, linex2:Float, lin
 End Function
 
 'rect api
-Function RectsOverlap:Bool(x0:Float, y0:Float, w0:Float, h0:Float, x2:Float, y2:Float, w2:Float, h2:Float)
- 	If x0 > (x2 + w2) Or (x0 + w0) < x2 Then Return False
- 	If y0 > (y2 + h2) Or (y0 + h0) < y2 Then Return False
+Function RectsOverlap:Bool(x1:Float, y1:Float, width1:Float, height1:Float, x2:Float, y2:Float, width2:Float, height2:Float)
+ 	If x1 > (x2 + width2) Or (x1 + width1) < x2 Return False
+ 	If y1 > (y2 + height2) Or (y1 + height1) < y2 Return False
 	Return True
 End
 
