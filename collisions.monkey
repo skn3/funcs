@@ -1,5 +1,7 @@
 Strict
 
+'version 4
+' - added some more collision tests
 'version 3
 ' - moved some bits to private!
 'version 2
@@ -382,8 +384,7 @@ End Function
 
 'rect api
 Function RectsOverlap:Bool(x1:Float, y1:Float, width1:Float, height1:Float, x2:Float, y2:Float, width2:Float, height2:Float)
- 	If x1 > (x2 + width2) Or (x1 + width1) < x2 Return False
- 	If y1 > (y2 + height2) Or (y1 + height1) < y2 Return False
+ 	If x1 > (x2 + width2) Or (x1 + width1) < x2 or y1 > (y2 + height2) Or (y1 + height1) < y2 Return False
 	Return True
 End
 
@@ -422,6 +423,61 @@ Function CircleToPoly:Bool(circleX:Float, circleY:Float, radius:Float, xy:Float[
 	
 	Return False
 End Function
+
+Function CircleOverlapsRect:Bool(circleX:Float, circleY:Float, circleRadius:Float, rectX:Float, rectY:Float, rectWidth:Float, rectHeight:Float)
+	' --- is circle overlapping rect ---
+	'do simple test
+	If circleX >= rectX And circleX < rectX + rectWidth And circleY >= rectY And circleY < rectY + rectHeight Return True
+	
+	'do complete test
+	Local rectHalfWidth:Float = rectWidth / 2.0
+	Local rectHalfHeight:Float = rectHeight / 2.0
+	Local circleDistanceX:Float = Abs(circleX - (rectX + rectHalfWidth))
+	Local circleDistanceY:Float = Abs(circleY - (rectY + rectHalfHeight))
+	
+	If circleDistanceX > rectHalfWidth + circleRadius Return False
+	If circleDistanceY > rectHalfHeight + circleRadius Return False
+	
+	If circleDistanceX <= rectHalfWidth Return True
+	If circleDistanceY <= rectHalfHeight Return True
+	
+	Return Pow(circleDistanceX - rectHalfWidth, 2.0) + Pow(circleDistanceY - rectHalfHeight, 2.0) <= Pow(circleRadius, 2.0)
+End
+
+Function MovingCircleOverlapsRect:Bool(circleX1:Float, circleY1:Float, circleX2:Float, circleY2:Float, circleRadius:Float, rectX:Float, rectY:Float, rectWidth:Float, rectHeight:Float)
+	' --- this will check if a moving circle overlaps a rect ---
+	'first do a simple tests
+	If circleRadius = 0.0 or rectWidth = 0.0 or rectHeight = 0.0 or rectWidth = 0.0 Return False
+	
+	'and rect bound test
+	Local tempX:Float
+	Local tempY:Float
+	Local tempWidth:Float
+	Local tempHeight:Float
+	If circleX1 < circleX2
+		tempX = circleX1 - circleRadius
+		tempWidth = circleX2 - circleX1 + circleRadius + circleRadius
+	Else
+		tempX = circleX2 - circleRadius
+		tempWidth = circleX1 - circleX2 + circleRadius + circleRadius
+	EndIf
+	If circleY1 < circleY2
+		tempY = circleY1 - circleRadius
+		tempHeight = circleY2 - circleY1 + circleRadius + circleRadius
+	Else
+		tempY = circleY2 - circleRadius
+		tempHeight = circleY1 - circleY2 + circleRadius + circleRadius
+	EndIf
+	If tempX > (rectX + rectWidth) Or (tempX + tempWidth) < rectX or tempY > (rectY + rectHeight) Or (tempY + tempHeight) < rectY Return False
+	
+	'now test end circles
+	If CircleOverlapsRect(circleX1, circleY1, circleRadius, rectX, rectY, rectWidth, rectHeight) or CircleOverlapsRect(circleX2, circleY2, circleRadius, rectX, rectY, rectWidth, rectHeight) Return True
+	
+	'finally test entire movement
+	'we expand the rect by radius, so we only have to do a line to rect test
+	Local offset:Float = Cos(45.0) * circleRadius
+	Return LineOverlapsRect(circleX1, circleY1, circleX2, circleY2, rectX - offset, rectY - offset, rectWidth + offset + offset, rectHeight + offset + offset)
+End
 
 'poly
 Function TransformPolyToTransformPoly:Bool(p1Xy:Float[], p1X:Float = 0, p1Y:Float = 0, p1Rot:Float = 0, p1ScaleX:Float = 1, p1ScaleY:Float = 1, p1HandleX:Float = 0, p1HandleY:Float = 0, p1OriginX:Float = 0, p1OriginY:Float = 0, p2Xy:Float[], p2X:Float = 0, p2Y:Float = 0, p2Rot:Float = 0, p2ScaleX:Float = 1, p2ScaleY:Float = 1, p2HandleX:Float = 0, p2HandleY:Float = 0, p2OriginX:Float = 0, p2OriginY:Float = 0)

@@ -1,8 +1,15 @@
 Strict
 
+'version 2
+' - added DrawThickLine function
+' - added DrawCircleOutline function
+'version 1
+' - seperated into graphics.monkey
+
 Import mojo
 
 Import skn3.callbacks
+Import maths
 
 #if TARGET = "glfw"
 Import "native/funcs.graphics.${TARGET}.${LANG}"
@@ -22,6 +29,7 @@ Public
 
 Private
 Global tempMatrix:Float[6]
+Const MAX_VERTS:Int = 1024
 Public
 
 'callbacks
@@ -54,22 +62,6 @@ Function GraphicsModeExists:Bool(width:Int, height:Int, depth:Int)
 	#else
 	Return False
 	#end	
-End
-
-Function DrawRectOutline:Void(x:Float, y:Float, width:Float, height:Float)
-	' --- draw a line rect ---
-	DrawLine(x, y, x + width, y)
-	DrawLine(x + width, y, x + width, y + height)
-	DrawLine(x + width, y + height, x, y + height)
-	DrawLine(x, y + height, x, y)
-End
-
-Function DrawRectOutline:Void(position:Float[], size:Float[])
-	' --- draw a line rect ---
-	DrawLine(position[0], position[1], position[0] + size[0], position[1])
-	DrawLine(position[0] + size[0], position[1], position[0] + size[0], position[1] + size[1])
-	DrawLine(position[0] + size[0], position[1] + size[1], position[0], position[1] + size[1])
-	DrawLine(position[0], position[1] + size[1], position[0], position[1])
 End
 
 Function ResetMatrix:Void()
@@ -132,36 +124,197 @@ Function InvertTransform:Void(x:Float, y:float, out:Float[])
 	out[1] = x * iy + y * jy + ty
 End
 
-#rem
-Function GetRotation:Float()
-	' --- get matrix rotation ---
-	Return GetRotation(GetMatrix())
+'draw api
+Function DrawRectOutline:Void(x:Float, y:Float, width:Float, height:Float)
+	' --- draw a line rect ---
+	DrawLine(x, y, x + width, y)
+	DrawLine(x + width, y, x + width, y + height)
+	DrawLine(x + width, y + height, x, y + height)
+	DrawLine(x, y + height, x, y)
 End
 
-Function GetRotation:Float(matrix:Float[])
-	' --- get matrix rotation ---
-	return ATan(matrix[2] / matrix[3])
+Function DrawRectOutline:Void(position:Float[], size:Float[])
+	' --- draw a line rect ---
+	DrawLine(position[0], position[1], position[0] + size[0], position[1])
+	DrawLine(position[0] + size[0], position[1], position[0] + size[0], position[1] + size[1])
+	DrawLine(position[0] + size[0], position[1] + size[1], position[0], position[1] + size[1])
+	DrawLine(position[0], position[1] + size[1], position[0], position[1])
 End
 
-Function GetScale:Void(out:Float[])
-	' --- get matrix scale ---
-	GetScale(GetMatrix(), out)
+Function DrawCircleOutline:Void(x:Float, y:Float, radius:Float, detail:Int = -1)
+	' --- draw outline of cirlce ---
+	'do auto detail
+	If detail < 0
+		detail = radius / 2.0
+		If detail < 3
+			detail = 3
+		ElseIf detail > MAX_VERTS
+			detail = MAX_VERTS
+		EndIf
+	ElseIf detail < 3
+		detail = 3
+	EndIf
+	
+	Local angleStep:Float = 360.0 / detail
+	Local angle:Float
+	Local offsetX:Float
+	Local offsetY:float
+	Local first:Bool = True
+	Local firstX:Float
+	Local firstY:float
+	Local thisX:Float
+	Local thisY:float
+	Local lastX:Float
+	Local lastY:Float
+	
+	For Local vertIndex:= 0 Until detail
+		offsetX = Sin(angle) * radius
+		offsetY = Cos(angle) * radius
+		If first
+			first = False
+			firstX = x + offsetX
+			firstY = y + offsetY
+			lastX = firstX
+			lastY = firstY
+		Else
+			thisX = x + offsetX
+			thisY = y + offsetY
+			DrawLine(lastX, lastY, thisX, thisY)
+			lastX = thisX
+			lastY = thisY
+		EndIf
+		angle += angleStep
+	Next
+	DrawLine(lastX, lastY, firstX, firstY)
 End
 
-Function GetScale:Void(matrix:float[], out:Float[])
-	' --- get matrix scale ---
-	out[0] = Sqrt(Pow(matrix[0], 2) + Pow(matrix[1], 2))
-	out[1] = Sqrt(Pow(matrix[2], 2) + Pow(matrix[3], 2))
-End
+Function DrawThickLine:Void(x1:Float, y1:Float, x2:Float, y2:Float, size:Float, filled:Bool = False, detail:Int = -1)
+	' --- draw a moving circle ---
+	Local radius:Float = size / 2.0
+	
+	'do auto detail
+	If detail < 0
+		detail = size / 5.0
+		If detail < 12
+			detail = 12
+		ElseIf detail > MAX_VERTS
+			detail = MAX_VERTS
+		EndIf
+	EndIf
 
-Function GetTranslation:Void(out:Float[])
-	' --- get matrix translation ---
-	GetTranslation(GetMatrix(), out)
+	Local movementAngle:Float = ATan2ToDegrees(x1 - x2, y1 - y2)
+	Local offsetX:Float = (Sin(movementAngle + 90) * radius)
+	Local offsetY:Float = (Cos(movementAngle + 90) * radius)
+	Local circleIndex:Int
+	Local circleAngleStep:Float = 180.0 / (detail + 1)
+	Local circleAngle:Float
+	
+	If filled = False
+		'just draw lines
+		Local firstX:Float
+		Local firstY:Float
+		Local lastX:Float
+		Local lastY:Float
+		Local thisX:Float
+		Local thisY:float
+		
+		'edge
+		firstX = x1 + offsetX
+		firstY = y1 + offsetY
+		lastX = x2 + offsetX
+		lastY = y2 + offsetY
+		DrawLine(firstX, firstY, lastX, lastY)
+		
+		'end circle
+		If detail > 0
+			circleAngle = movementAngle + 90 + circleAngleStep
+			For circleIndex = 0 Until detail
+				thisX = x2 + (Sin(circleAngle) * radius)
+				thisY = y2 + (Cos(circleAngle) * radius)
+				DrawLine(lastX, lastY, thisX, thisY)
+				lastX = thisX
+				lastY = thisY
+				circleAngle += circleAngleStep
+			Next
+		EndIf
+		
+		'top/end circle last
+		offsetX = (Sin(movementAngle - 90) * radius)
+		offsetY = (Cos(movementAngle - 90) * radius)
+		
+		thisX = x2 + offsetX
+		thisY = y2 + offsetY
+		DrawLine(lastX, lastY, thisX, thisY)
+		lastX = thisX
+		lastY = thisY
+		
+		'edge
+		thisX = x1 + offsetX
+		thisY = y1 + offsetY
+		DrawLine(lastX, lastY, thisX, thisY)
+		lastX = thisX
+		lastY = thisY
+		
+		'start circle
+		If detail > 0
+			circleAngle = movementAngle - 90 + circleAngleStep
+			For circleIndex = 0 Until detail
+				thisX = x1 + (Sin(circleAngle) * radius)
+				thisY = y1 + (Cos(circleAngle) * radius)
+				DrawLine(lastX, lastY, thisX, thisY)
+				lastX = thisX
+				lastY = thisY
+				circleAngle += circleAngleStep
+			Next
+		EndIf
+		
+		'top/end circle last
+		DrawLine(lastX, lastY, firstX, firstY)
+	Else
+		'setup verts array
+		Local verts:Float[8 + (detail * 2 * 2)]
+		Local index:Int
+		
+		'edge
+		verts[0] = x1 + offsetX
+		verts[1] = y1 + offsetY
+		verts[2] = x2 + offsetX
+		verts[3] = y2 + offsetY
+		index = 4
+		
+		'end circle
+		If detail > 0
+			circleAngle = movementAngle + 90 + circleAngleStep
+			For circleIndex = 0 Until detail
+				verts[index] = x2 + (Sin(circleAngle) * radius)
+				verts[index + 1] = y2 + (Cos(circleAngle) * radius)
+				index += 2
+				circleAngle += circleAngleStep
+			Next
+		EndIf
+		
+		'edge
+		offsetX = (Sin(movementAngle - 90) * radius)
+		offsetY = (Cos(movementAngle - 90) * radius)
+		
+		verts[index] = x2 + offsetX
+		verts[index + 1] = y2 + offsetY
+		verts[index + 2] = x1 + offsetX
+		verts[index + 3] = y1 + offsetY
+		index += 4
+		
+		'start circle
+		If detail > 0
+			circleAngle = movementAngle - 90 + circleAngleStep
+			For circleIndex = 0 Until detail
+				verts[index] = x1 + (Sin(circleAngle) * radius)
+				verts[index + 1] = y1 + (Cos(circleAngle) * radius)
+				index += 2
+				circleAngle += circleAngleStep
+			Next
+		EndIf
+		
+		'draw it
+		DrawPoly(verts)
+	EndIf
 End
-
-Function GetTranslation:Void(matrix:Float[], out:Float[])
-	' --- get matrix translation ---
-	out[0] = matrix[4]
-	out[1] = matrix[5]
-End
-#rem
