@@ -1,5 +1,7 @@
 Strict
 
+'version 5
+' - tweaked LinesCross and added overload version to return intersection point
 'version 4
 ' - added some more collision tests
 'version 3
@@ -160,12 +162,12 @@ Function PointInRect:Bool(pointX:Float, pointY:Float, rectX:Float, rectY:Float, 
 End Function
 
 'line api
-Function LineOverlapsRect:Bool(lineX1:Float, lineY1:Float, lineX2:Float, lineY2:Float, rectX1:Float, rectY1:Float, rectWidth1:Float, rectHeight1:Float)
+Function LineOverlapsRect:Bool(lineX1:Float, lineY1:Float, lineX2:Float, lineY2:Float, rectX:Float, rectY:Float, rectWidth:Float, rectHeight:Float)
 	' --- quickest test for line overlapping a rect ---
 	'useful for testing if a moving point collided with a rect (without having to return the intersection point)	
 	'pre calc rect bottom corner (surely will save a few calculations?)
-	Local rectX2:= rectX1 + rectWidth1
-	Local rectY2:= rectY1 + rectHeight1
+	Local rectX2:= rectX + rectWidth
+	Local rectY2:= rectY + rectHeight
 	
 	'lets do a rect test first speed things up
 	Local lineRectX:= 0.0
@@ -189,7 +191,7 @@ Function LineOverlapsRect:Bool(lineX1:Float, lineY1:Float, lineX2:Float, lineY2:
 		lineRectHeight = lineY1 - lineY2
 	EndIf
 	
-	If lineRectX > rectX2 Or (lineRectX + lineRectWidth) < rectX1 or lineRectY > rectY2 Or (lineRectY + lineRectHeight) < rectY1 Return False
+	If lineRectX > rectX2 Or (lineRectX + lineRectWidth) < rectX or lineRectY > rectY2 Or (lineRectY + lineRectHeight) < rectY Return False
 	
 	'Find min and max X For the segment
 	Local minX:= lineX1
@@ -202,7 +204,7 @@ Function LineOverlapsRect:Bool(lineX1:Float, lineY1:Float, lineX2:Float, lineY2:
 	
 	'Find the intersection of the segment's and rectangle's x-projections
 	If maxX > rectX2 maxX = rectX2
-	If minX < rectX1 minX = rectX1
+	If minX < rectX minX = rectX
 	
 	If minX > maxX Return False 'If their projections do not intersect return false
 	
@@ -227,7 +229,7 @@ Function LineOverlapsRect:Bool(lineX1:Float, lineY1:Float, lineX2:Float, lineY2:
 	
 	'Find the intersection of the segment's and rectangle's y-projections
 	If maxY > rectY2 maxY = rectY2
-	If minY < rectY1 minY = rectY1
+	If minY < rectY minY = rectY
 	
 	If minY > maxY Return False' // If Y-projections do not intersect return false
 	
@@ -271,35 +273,60 @@ Function LineToPoly:Bool(lineX1:Float, lineY1:Float, lineX2:Float, lineY2:Float,
 	
 End Function
 
-Function LinesCross:Bool(x0:Float, y0:Float, x1:Float, y1:Float, x2:Float, y2:Float, x3:Float, y3:Float)
+Function LinesCross:Bool(x1:Float, y1:Float, x2:Float, y2:Float, x3:Float, y3:Float, x4:Float, y4:Float)
+	' --- do lines intersection ---
 	'Adapted from Fredborg's code
-	Local n:Float = (y0 - y2) * (x3 - x2) - (x0 - x2) * (y3 - y2)
-	Local d:Float=(x1-x0)*(y3-y2)-(y1-y0)*(x3-x2)
+	Local n:Float = (y1 - y3) * (x4 - x3) - (x1 - x3) * (y4 - y3)
+	Local d:Float = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3)
 	
-	If Abs(d) < 0.0001 
-		' Lines are parallel!
-		Return False
-	Else
-		' Lines might cross!
-		Local Sn:Float=(y0-y2)*(x1-x0)-(x0-x2)*(y1-y0)
+	'test for lines are parallel!
+	If Abs(d) < 0.0001 Return false
+		
+	'might cross
+	Local sn:Float = (y1 - y3) * (x2 - x1) - (x1 - x3) * (y2 - y1)
 
-		Local AB:Float=n/d
-		If AB>0.0 And AB<1.0
-			Local CD:Float=Sn/d
-			If CD>0.0 And CD<1.0
-				' Intersection Point
-				Local X:= x0 + AB * (x1 - x0)
-		       	Local Y:= y0 + AB * (y1 - y0)
-				Return True
-			End If
-		End If
-	
-		' Lines didn't cross, because the intersection was beyond the end points of the lines
+	Local ab:Float = n / d
+	If ab > 0.0 And ab < 1.0
+		'check intersection
+		Local cd:Float = sn / d
+		If cd > 0.0 And cd < 1.0 Return True
 	EndIf
-
-	' Lines do Not cross!
+	
+	'lines didn't cross, because the intersection was beyond the end points of the lines
+	'nope
 	Return False
+End Function
 
+Function LinesCross:Bool(x1:Float, y1:Float, x2:Float, y2:Float, x3:Float, y3:Float, x4:Float, y4:Float, intersectionPoint:Float[])
+	' --- do lines intersection ---
+	'Adapted from Fredborg's code
+	Local n:Float = (y1 - y3) * (x4 - x3) - (x1 - x3) * (y4 - y3)
+	Local d:Float = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3)
+	
+	'test for lines are parallel!
+	If Abs(d) < 0.0001 Return false
+		
+	'might cross
+	Local sn:Float = (y1 - y3) * (x2 - x1) - (x1 - x3) * (y2 - y1)
+
+	Local ab:Float = n / d
+	If ab > 0.0 And ab < 1.0
+		'check intersection
+		Local cd:Float = sn / d
+		
+		If cd > 0.0 And cd < 1.0
+			'set the out intersection point
+			intersectionPoint[0] = x1 + ab * (x2 - x1)
+	       	intersectionPoint[1] = y1 + ab * (y2 - y1)
+			
+			'return it
+			Return True
+		EndIf
+	EndIf
+	
+	'lines didn't cross, because the intersection was beyond the end points of the lines
+	'nope
+	Return False
 End Function
 
 Function LineToCircle:Bool(x1:Float, y1:Float, x2:Float, y2:Float, circleX:Float, circleY:Float, circleRadius:Float)
