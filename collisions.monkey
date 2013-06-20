@@ -11,6 +11,7 @@ Strict
 ' - seperated into colliions.monkey
 
 Import monkey.math
+Import maths
 
 'internal
 Private
@@ -301,29 +302,18 @@ Function LinesCross:Bool(x0:Float, y0:Float, x1:Float, y1:Float, x2:Float, y2:Fl
 
 End Function
 
-Function LineToCircle:Bool(x1:Float, y1:Float, x2:Float, y2:Float, px:Float, py:Float, r:Float)
+Function LineToCircle:Bool(x1:Float, y1:Float, x2:Float, y2:Float, circleX:Float, circleY:Float, circleRadius:Float)
 	'Adapted from TomToad's code
 	Local sx:Float = x2-x1
 	Local sy:Float = y2-y1
+	Local q:Float = ( (circleX - x1) * (x2 - x1) + (circleY - y1) * (y2 - y1)) / (sx * sx + sy * sy)
+	If q < 0.0 q = 0.0
+	If q > 1.0 q = 1.0
 	
-	Local q:Float = ((px-x1) * (x2-x1) + (py - y1) * (y2-y1)) / (sx*sx + sy*sy)
-	
-	If q < 0.0 Then q = 0.0
-	If q > 1.0 Then q = 1.0
-	
-	Local cx:Float=(1-q)*x1+q*x2
-	Local cy:Float=(1-q)*y1 + q*y2
-	
-	
-	If DistanceBetweenPoints(px,py,cx,cy) < r
-		
-		Return True
-		
-	Else
-		
-		Return False
-		
-	EndIf
+	'inline the DistanceBetweenPoints function for speed
+	sx = circleX - ( (1 - q) * x1 + q * x2)
+	sy = circleY - ( (1 - q) * y1 + q * y2)
+	Return Sqrt(sx * sx + sy * sy) < circleRadius
 End Function
 
 Function GetLineIntersectLine:Void(line1x1:Float, line1y1:Float, line1x2:Float, line1y2:Float, line2x1:Float, line2y1:Float, line2x2:Float, line2y2:Float, result:Float[])
@@ -346,8 +336,6 @@ Function GetLineIntersectLine:Void(line1x1:Float, line1y1:Float, line1x2:Float, 
 	result[0] = (line2y1 - line1y1 - (line2x1 * m2) + (line1x1 * m1)) / (m1 - m2)
 	result[1] = m1 * result[0] + b1
 End Function
-
-
 
 Function GetLineIntersectRect:Void(linex1:Float, liney1:Float, linex2:Float, liney2:Float, rectX1:Float, rectY1:Float, rectWidth:Float, rectHeight:Float, result:Float[])
 	Local rectX2:Float = rectX1 + rectWidth
@@ -473,10 +461,19 @@ Function MovingCircleOverlapsRect:Bool(circleX1:Float, circleY1:Float, circleX2:
 	'now test end circles
 	If CircleOverlapsRect(circleX1, circleY1, circleRadius, rectX, rectY, rectWidth, rectHeight) or CircleOverlapsRect(circleX2, circleY2, circleRadius, rectX, rectY, rectWidth, rectHeight) Return True
 	
-	'finally test entire movement
-	'we expand the rect by radius, so we only have to do a line to rect test
-	Local offset:Float = Cos(45.0) * circleRadius
-	Return LineOverlapsRect(circleX1, circleY1, circleX2, circleY2, rectX - offset, rectY - offset, rectWidth + offset + offset, rectHeight + offset + offset)
+	'finally we should test two outer edges
+	'this is expensive :/
+	Local angle:Float = ATan2ToDegrees(circleX2 - circleX1, circleY2 - circleY1)
+	Local offsetX:Float = (Sin(angle + 90) * circleRadius)
+	Local offsetY:Float = (Cos(angle + 90) * circleRadius)
+	If LineOverlapsRect(circleX1 + offsetX, circleY1 + offsetY, circleX2 + offsetX, circleY2 + offsetY, rectX, rectY, rectWidth, rectHeight) Return True
+	
+	offsetX = -offsetX
+	offsetY = -offsetY
+	If LineOverlapsRect(circleX1 + offsetX, circleY1 + offsetY, circleX2 + offsetX, circleY2 + offsetY, rectX, rectY, rectWidth, rectHeight) Return True
+	
+	'nope
+	Return False
 End
 
 'poly
@@ -504,7 +501,7 @@ Function PolyToTransformPoly:Bool(p1Xy:Float[], p2Xy:Float[], p2X:Float = 0, p2Y
 	
 	Local transformedXy:Float[]=TransformPoly(p2Xy,p2X,p2Y,rot,scaleX,scaleY,handleX,handleY,originX,originY)
 	
-	If PolyToPoly(p1Xy,transformedXy)
+	If PolyToPoly(p1Xy, transformedXy)
 		Return True
 	Else
 		Return False

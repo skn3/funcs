@@ -239,8 +239,8 @@ Function DrawThickLine:Void(x1:Float, y1:Float, x2:Float, y2:Float, size:Float, 
 		EndIf
 		
 		'top/end circle last
-		offsetX = (Sin(movementAngle - 90) * radius)
-		offsetY = (Cos(movementAngle - 90) * radius)
+		offsetX = -offsetX
+		offsetY = -offsetY
 		
 		thisX = x2 + offsetX
 		thisY = y2 + offsetY
@@ -294,8 +294,8 @@ Function DrawThickLine:Void(x1:Float, y1:Float, x2:Float, y2:Float, size:Float, 
 		EndIf
 		
 		'edge
-		offsetX = (Sin(movementAngle - 90) * radius)
-		offsetY = (Cos(movementAngle - 90) * radius)
+		offsetX = -offsetX
+		offsetY = -offsetY
 		
 		verts[index] = x2 + offsetX
 		verts[index + 1] = y2 + offsetY

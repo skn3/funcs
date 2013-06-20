@@ -29,3 +29,9 @@ Function ATan2ToDegrees:Float(x:Float, y:float)
 	If angle < 0 Return 180.0 + (180.0 + angle)
 	Return angle
 End
+
+Function Slope:Float(x1:Float, y1:Float, x2:Float, y2:Float)
+	' --- get slope of line ---
+	'mostly here for reference
+	Return (y2 - y1) / (x2 - x1)
+End
